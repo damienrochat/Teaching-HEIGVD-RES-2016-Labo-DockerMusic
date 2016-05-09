@@ -5,44 +5,38 @@ var protocol = require('./protocol');
  * We use a standard Node.js module to work with UDP
  */
 var dgram = require('dgram');
+var uuid = require('uuid');
 
 /*
  * Let's create a datagram socket. We will use it to send our UDP datagrams 
  */
 var socket = dgram.createSocket('udp4');
+var instrumentMap = new Map();
+instrumentMap.set("flute","trulu");
+instrumentMap.set("piano","ti-ta-ti");
+instrumentMap.set("trumpet","pouet");
+instrumentMap.set("violin","gzi-gzi");
+instrumentMap.set("drum","boum-boum");
+
 
 
 function Musician(instrument)
 {
-	switch(instrument)
-	{
-		case "flute":
-			this.sound = "trulu";
-			break;
-		case "piano":
-			this.sound = "ti-ta-ti";
-			break;
-		case "trumpet":
-			this.sound = "pouet";
-			break;
-		case "violin":
-			this.sound = "gzi-gzi";
-			break;
-		case "drum":
-			this.sound = "boum-boum";
-			break;
-		default:
-		    throw "Wrong instrument";
-		    break;
-	}
+	this.sound = this.instrumentMap.get(instrument);
 	
 	Musician.prototype.update = function()
 	{
-		var payload = JSON.stringify(this.sound);
+		var dataSend = 
+		{
+			uuid: uuid.v1(),
+			sound: this.sound,
+			time:  Date.now()
+		};
+		var payload = JSON.stringify(dataSend);
 		var message = new Buffer(payload);
 		
 		socket.send(message, 0, message.length, protocol.PORT, protocol.MULTICAST_ADDRESS, function(err, bytes) {
-			console.log("Sending " + message + " via port " + socket.address().port);
+			console.log("Sending " + payload + " via port " + socket.address().port);
 		});
 	}
 	

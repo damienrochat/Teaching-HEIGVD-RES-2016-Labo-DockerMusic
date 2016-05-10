@@ -1,49 +1,61 @@
 
-var protocol = require('./protocol');
-
-/*
- * We use a standard Node.js module to work with UDP
+/**
+ * Load required packages
  */
-var dgram = require('dgram');
-var uuid = require('uuid');
+var config = require('./config');
+var dgram = require('dgram'); // for udp communication
+var uuid = require('uuid'); // for UUID generation
 
-/*
- * Let's create a datagram socket. We will use it to send our UDP datagrams 
+/**
+ * Definition of the instruments and their sound
+ * Provide a search by instrument name
+ */
+const INSTRUMENTS = new Map([
+    ["flute", "trulu"],
+    ["piano", "ti-ta-ti"],
+    ["trumpet", "pouet"],
+    ["violin", "gzi-gzi"],
+    ["drum", "boum-boum"]
+]);
+
+/**
+ * Create socket
  */
 var socket = dgram.createSocket('udp4');
-var instrumentMap = new Map();
-instrumentMap.set("flute","trulu");
-instrumentMap.set("piano","ti-ta-ti");
-instrumentMap.set("trumpet","pouet");
-instrumentMap.set("violin","gzi-gzi");
-instrumentMap.set("drum","boum-boum");
 
+/**
+ * Define the Musician object
+ * - take a valide instrument name has parameter, otherwise throw an exception
+ * - emite the sound of the instrument continuously
+ */
+function Musician(instrument) {
+    if (!INSTRUMENTS.has(instrument)) {
+        throw "Unknown instrument";
+    }
+    this.sound = INSTRUMENTS.get(instrument);
+    this.uuid = uuid.v1(); // UUID based on current time
 
-
-function Musician(instrument)
-{
-	this.sound = this.instrumentMap.get(instrument);
-	
-	Musician.prototype.update = function()
-	{
-		var dataSend = 
-		{
-			uuid: uuid.v1(),
-			sound: this.sound,
-			time:  Date.now()
-		};
-		var payload = JSON.stringify(dataSend);
-		var message = new Buffer(payload);
-		
-		socket.send(message, 0, message.length, protocol.PORT, protocol.MULTICAST_ADDRESS, function(err, bytes) {
-			console.log("Sending " + payload + " via port " + socket.address().port);
-		});
-	}
-	
-	// Every 1000 ms
-	setInterval(this.update.bind(this), 1000);
+    /**
+     * Send function
+     * - create and send a payload with the instrument uuid, time and sound
+     */
+    Musician.prototype.send = () => {
+        var dataSend =  {
+            uuid: this.uuid,
+            sound: this.sound
+        };
+        var payload = JSON.stringify(dataSend);
+        var message = new Buffer(payload);
+        socket.send(message, 0, message.length, config.PROTOCOL_PORT, config.PROTOCOL_MULTICAST_ADDRESS, () => {
+            console.log("Sent " + payload + " via port " + socket.address().port);
+        });
+    };
+    
+    setInterval(this.send.bind(this), config.SEND_INTERVAL);
 }
 
+/**
+ * Create the instrument based on the user entry
+ */
 var instrument = process.argv[2];
-
 var musician = new Musician(instrument);

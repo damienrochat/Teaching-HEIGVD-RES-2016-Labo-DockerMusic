@@ -1,16 +1,96 @@
 
-var protocol = require('./protocol');
+/**
+ * Load required packages
+ */
+var config = require('./config');
+var dgram = require('dgram'); // for udp communication
+var moment = require('moment'); // for dates formatting
+var net = require('net');
 
-var dgram = require('dgram');
+/**
+ * Definition of the instruments and their sound
+ * Provide a search by instrument sound
+ */
+const INSTRUMENTS = new Map([
+    ["trulu", "flute"],
+    ["ti-ta-ti", "piano"],
+    ["pouet", "trumpet"],
+    ["gzi-gzi", "violin"],
+    ["boum-boum", "drum"]
+]);
 
-var musicians = dgram.createSocket('udp4');
+/**
+ * Define the Auditor object
+ */
+function Auditor() {
+    this.musicians = new Map(); // active musicians
 
-musicians.bind(protocol.PORT,function()
-{
-	musicians.addMembership(protocol.MULTICAST_ADDRESS);
+    /**
+     * Add a musician to the active list
+     * - stop if the sound doesn't exists
+     * - update the musician if already in list
+     * - or add the new musician
+     */
+    Auditor.prototype.addMusician = (uuid, sound) => {
+        if (!INSTRUMENTS.has(sound)) {
+            throw "Unknown instrument sound";
+        }
+        if (this.musicians.has(uuid)) {
+            this.musicians.get(uuid).lastActivity = Date.now();
+        }
+        else {
+            this.musicians.set(uuid, {
+                instrument: INSTRUMENTS.get(sound),
+                activeSince: Date.now(),
+                lastActivity: Date.now()
+            });
+        }
+    };
+
+    Auditor.prototype.activeMusicians = () => {
+        var list = [];
+        this.musicians.forEach((attr, uuid) => {
+            if (attr.lastActivity + config.MIN_ACTIVE_TIME < Date.now()) {
+                this.musicians.delete(uuid);
+            }
+            else {
+                list.push({
+                    uuid: uuid,
+                    instrument: attr.instrument,
+                    activeSince: moment(attr.activeSince).format("YYYY-MM-DDThh:mm:ss.SSS")
+                });
+            }
+        });
+        return list;
+    };
+}
+var auditor = new Auditor();
+
+/**
+ * Create and init socket
+ * - listen on the port
+ * - add auditor to the multicast group
+ * - handle input messages
+ */
+var socket = dgram.createSocket('udp4');
+
+socket.on('message', (message, source) => {
+    console.log("Musician : " + message + " Source : " + source.port);
+    var musician = JSON.parse(message);
+    auditor.addMusician(musician.uuid, musician.sound);
 });
 
-musicians.on('message',function(msg,source)
-{
-	console.log("Musician : " + msg + " Source : " + source.port);
+socket.bind(config.PROTOCOL_PORT, () => {
+    console.log("Joining multicast group");
+    socket.addMembership(config.PROTOCOL_MULTICAST_ADDRESS);
 });
+
+/**
+ * Create the server
+ */
+const server = net.createServer((socket) => {
+    socket.write(JSON.stringify(auditor.activeMusicians()));
+    socket.pipe(socket);
+});
+
+server.listen(config.PROTOCOL_PORT);

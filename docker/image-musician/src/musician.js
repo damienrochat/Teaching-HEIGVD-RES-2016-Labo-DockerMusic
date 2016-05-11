@@ -32,22 +32,23 @@ function Musician(instrument) {
     if (!INSTRUMENTS.has(instrument)) {
         throw "Unknown instrument";
     }
+
+    // Generate Musician attributs
     this.sound = INSTRUMENTS.get(instrument);
     this.uuid = uuid.v1(); // UUID based on current time
+    this.payload = JSON.stringify({
+        uuid: this.uuid,
+        sound: this.sound
+    });
 
     /**
      * Send function
-     * - create and send a payload with the instrument uuid, time and sound
+     * - send the payload with the instrument uuid, time and sound
      */
     Musician.prototype.send = () => {
-        var dataSend =  {
-            uuid: this.uuid,
-            sound: this.sound
-        };
-        var payload = JSON.stringify(dataSend);
-        var message = new Buffer(payload);
+        var message = new Buffer(this.payload);
         socket.send(message, 0, message.length, config.PROTOCOL_PORT, config.PROTOCOL_MULTICAST_ADDRESS, () => {
-            console.log("Sent " + payload + " via port " + socket.address().port);
+            console.log("Sent " + this.payload + " via port " + socket.address().port);
         });
     };
     

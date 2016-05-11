@@ -47,6 +47,11 @@ function Auditor() {
         }
     };
 
+    /**
+     * Get all active musicians
+     * - Test if each musician is always active and remove it if necessary
+     * - The clean could also been done with an interval
+     */
     Auditor.prototype.activeMusicians = () => {
         var list = [];
         this.musicians.forEach((attr, uuid) => {
@@ -67,7 +72,7 @@ function Auditor() {
 var auditor = new Auditor();
 
 /**
- * Create and init socket
+ * Create and init socket (UDP)
  * - listen on the port
  * - add auditor to the multicast group
  * - handle input messages
@@ -86,11 +91,14 @@ socket.bind(config.PROTOCOL_PORT, () => {
 });
 
 /**
- * Create the server
+ * Create the server (TCP)
+ * - half-close the the connection after write
  */
 const server = net.createServer((socket) => {
+    console.log("Sending active musicians");
     socket.write(JSON.stringify(auditor.activeMusicians()));
     socket.pipe(socket);
+    socket.end();
 });
 
 server.listen(config.PROTOCOL_PORT);

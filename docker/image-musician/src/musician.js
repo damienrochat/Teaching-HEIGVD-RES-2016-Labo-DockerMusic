@@ -1,5 +1,10 @@
 
 /**
+ * Authors : Damien Rochat <damien.rochat@heig-vd.ch>
+ *           Kevin Ponce <kevin.ponce@heig-vd.ch>
+ */
+
+/**
  * Load required packages
  */
 var config = require('./config');

@@ -1,5 +1,10 @@
 
 /**
+ * Authors : Damien Rochat <damien.rochat@heig-vd.ch>
+ *           Kevin Ponce <kevin.ponce@heig-vd.ch>
+ */
+
+/**
  * Network configurations
  */
 exports.PROTOCOL_MULTICAST_ADDRESS = "239.255.22.5";
